@@ -67,11 +67,48 @@ app.get("/contacts/new", (req, res) => {
   res.render("new-contact");
 });
 
-app.post("/contacts/new", (req, res) => {
-  contactData.push({ ...req.body });
+app.post("/contacts/new", 
+  (req, res, next) => {
+    res.locals.errorMessages = [];
+
+    next();
+  },
+  (req, res, next) => {
+    if (req.body.firstName.length === 0) {
+      res.locals.errorMessages.push("First name is required.");
+    }
+
+    next();
+  },
+  (req, res, next) => {
+    if (req.body.lastName.length === 0) {
+      res.locals.errorMessages.push("Last name is required.");
+    }
+
+    next();
+  },
+  (req, res, next) => {
+    if (req.body.phoneNumber.length === 0) {
+      res.locals.errorMessages.push("Phone number is required.");
+    }
+
+    next();
+  },
+  (req, res, next) => {
+    if (res.locals.errorMessages.length > 0) {
+      res.render("new-contact", {
+        errorMessages: res.locals.errorMessages,
+      });
+    } else {
+      next();
+    }
+  },
+  (req, res) => {
+    contactData.push({ ...req.body });
   
-  res.redirect("/contacts");
-});
+    res.redirect("/contacts");
+  }
+);
 
 app.listen(PORT, () => {
   console.log(`Listening on port ${PORT}...`);
