@@ -46,7 +46,7 @@ const sortContacts = contacts => {
   });
 };
 
-app.set("views", "/views");
+app.set("views", "./views");  // note the relative folder path with `./`
 app.set("view engine", "pug");
 
 app.use(express.static("public"));
