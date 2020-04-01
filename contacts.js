@@ -140,6 +140,9 @@ app.post("/contacts/new",
     if (res.locals.errorMessages.length > 0) {
       res.render("new-contact", {
         errorMessages: res.locals.errorMessages,
+        firstName: res.locals.firstName,
+        lastName: res.locals.lastName,
+        phoneNumber: res.locals.phoneNumber,
       });
     } else {
       next();
