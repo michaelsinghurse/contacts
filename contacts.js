@@ -46,6 +46,22 @@ const sortContacts = contacts => {
   });
 };
 
+function containsOnlyLetters(str) {
+  let regexp = /[^A-Za-z]/g;
+  return !regexp.test(str);
+}
+
+function isFullNameTaken(first, last) {
+  return contactData.filter(contact => {
+    return contact.firstName === first && contact.lastName === last;
+  }).length > 0;
+}
+
+function isValidPhoneNumber(str) {
+  let regexp = /\d{3}-\d{3}-\d{4}/g;
+  return regexp.test(str);
+}
+
 app.set("views", "./views");  // note the relative folder path with `./`
 app.set("view engine", "pug");
 
@@ -74,22 +90,48 @@ app.post("/contacts/new",
     next();
   },
   (req, res, next) => {
-    if (req.body.firstName.length === 0) {
+    res.locals.firstName = req.body.firstName.trim();
+    res.locals.lastName = req.body.lastName.trim();
+    res.locals.phoneNumber = req.body.phoneNumber.trim();
+    
+    next();
+  },
+  (req, res, next) => {
+    let fName = res.locals.firstName; 
+
+    if (fName.length === 0) {
       res.locals.errorMessages.push("First name is required.");
+    } else if (fName.length > 25) {
+      res.locals.errorMessages.push("First name must not exceed 25 characters.");
+    } else if (!containsOnlyLetters(fName)) {
+      res.locals.errorMessages.push("First name can only contain letters.");
     }
-
+      
     next();
   },
   (req, res, next) => {
-    if (req.body.lastName.length === 0) {
+    let lName = res.locals.lastName; 
+
+    if (lName.length === 0) {
       res.locals.errorMessages.push("Last name is required.");
+    } else if (lName.length > 25) {
+      res.locals.errorMessages.push("Last name must not exceed 25 characters");
+    } else if (!containsOnlyLetters(lName)) {
+      res.locals.errorMessages.push("Last name can only contain letters.");
+    } else if (isFullNameTaken(res.locals.firstName, lName)) {
+      res.locals.errorMessages.push("Sorry that name is already taken.");
     }
-
+      
     next();
   },
   (req, res, next) => {
-    if (req.body.phoneNumber.length === 0) {
+    let phone = res.locals.phoneNumber; 
+
+    if (phone.length === 0) {
       res.locals.errorMessages.push("Phone number is required.");
+    } else if (!isValidPhoneNumber(phone)) {
+      res.locals.errorMessages.push("Phone number must be of form " +
+        "###-###-####");
     }
 
     next();
@@ -104,7 +146,11 @@ app.post("/contacts/new",
     }
   },
   (req, res) => {
-    contactData.push({ ...req.body });
+    contactData.push({ 
+      firstName: res.locals.firstName,
+      lastName: res.locals.lastName,
+      phoneNumber: res.locals.phoneNumber,
+    });
   
     res.redirect("/contacts");
   }
