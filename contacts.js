@@ -4,7 +4,9 @@
 
 const express = require('express');
 const morgan = require('morgan');
+const { body, validationResult } = require("express-validator");
 const PORT = 3000;
+
 const app = express();
 
 let contactData = [
@@ -62,6 +64,20 @@ function isValidPhoneNumber(str) {
   return regexp.test(str);
 }
 
+function validateName(name, whichName) {
+  return body(name)
+    .trim()
+    .isLength({ min: 1 })
+    .withMessage(`${whichName} name is required`)
+    .bail()
+    .isLength({ max: 25 })
+    .withMessage(`${whichName} name is too long. ` +
+      "It must not exceed 25 characters.")
+    .isAlpha()
+    .withMessage(`${whichName} name contains invalid characters. ` +
+      "It can only contain letters.");
+}
+
 app.set("views", "./views");  // note the relative folder path with `./`
 app.set("view engine", "pug");
 
@@ -83,66 +99,28 @@ app.get("/contacts/new", (req, res) => {
   res.render("new-contact");
 });
 
-app.post("/contacts/new", 
-  (req, res, next) => {
-    res.locals.errorMessages = [];
+app.post("/contacts/new",
+  [
+    validateName("firstName", "First"),
+    validateName("lastName", "Last"),
 
-    next();
-  },
+    body("phoneNumber")
+      .trim()
+      .isLength({ min: 1 })
+      .withMessage("Phone number is required.")
+      .bail()
+      .matches(/^\d{3}-\d{3}-\d{4}$/)
+      .withMessage("Invalid phone number format. Please use ###-###-####."),
+  ],
   (req, res, next) => {
-    res.locals.firstName = req.body.firstName.trim();
-    res.locals.lastName = req.body.lastName.trim();
-    res.locals.phoneNumber = req.body.phoneNumber.trim();
-    
-    next();
-  },
-  (req, res, next) => {
-    let fName = res.locals.firstName; 
+    let errors = validationResult(req);
 
-    if (fName.length === 0) {
-      res.locals.errorMessages.push("First name is required.");
-    } else if (fName.length > 25) {
-      res.locals.errorMessages.push("First name must not exceed 25 characters.");
-    } else if (!containsOnlyLetters(fName)) {
-      res.locals.errorMessages.push("First name can only contain letters.");
-    }
-      
-    next();
-  },
-  (req, res, next) => {
-    let lName = res.locals.lastName; 
-
-    if (lName.length === 0) {
-      res.locals.errorMessages.push("Last name is required.");
-    } else if (lName.length > 25) {
-      res.locals.errorMessages.push("Last name must not exceed 25 characters");
-    } else if (!containsOnlyLetters(lName)) {
-      res.locals.errorMessages.push("Last name can only contain letters.");
-    } else if (isFullNameTaken(res.locals.firstName, lName)) {
-      res.locals.errorMessages.push("Sorry that name is already taken.");
-    }
-      
-    next();
-  },
-  (req, res, next) => {
-    let phone = res.locals.phoneNumber; 
-
-    if (phone.length === 0) {
-      res.locals.errorMessages.push("Phone number is required.");
-    } else if (!isValidPhoneNumber(phone)) {
-      res.locals.errorMessages.push("Phone number must be of form " +
-        "###-###-####");
-    }
-
-    next();
-  },
-  (req, res, next) => {
-    if (res.locals.errorMessages.length > 0) {
+    if (!errors.isEmpty()) {
       res.render("new-contact", {
-        errorMessages: res.locals.errorMessages,
-        firstName: res.locals.firstName,
-        lastName: res.locals.lastName,
-        phoneNumber: res.locals.phoneNumber,
+        errorMessages: errors.array().map(error => error.msg),
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        phoneNumber: req.body.phoneNumber
       });
     } else {
       next();
@@ -150,9 +128,9 @@ app.post("/contacts/new",
   },
   (req, res) => {
     contactData.push({ 
-      firstName: res.locals.firstName,
-      lastName: res.locals.lastName,
-      phoneNumber: res.locals.phoneNumber,
+      firstName: req.body.firstName,
+      lastName: req.body.lastName,
+      phoneNumber: req.body.phoneNumber,
     });
   
     res.redirect("/contacts");
